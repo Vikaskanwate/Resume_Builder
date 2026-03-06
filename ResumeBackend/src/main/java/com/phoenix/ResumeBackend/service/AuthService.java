@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -81,6 +82,18 @@ public class AuthService {
                 .verificationToken(UUID.randomUUID().toString())
                 .verificationExpires(LocalDateTime.now().plusHours(24))
                 .build();
+    }
+
+    public void verifyEmail(String token){
+        User user = userRepository.findByVerificationToken(token)
+                .orElseThrow(()->new RuntimeException("Invalid or expired verification token"));
+        if(user.getVerificationToken() != null && user.getVerificationExpires().isBefore(LocalDateTime.now())){
+            throw new RuntimeException("verification token has expired. please request new one");
+        }
+        user.setEmailVerified(true);
+        user.setVerificationToken(null);
+        user.setVerificationExpires(null);
+        userRepository.save(user);
     }
 
 }
