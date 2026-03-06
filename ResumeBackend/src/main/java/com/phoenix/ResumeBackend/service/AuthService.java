@@ -7,6 +7,7 @@ import com.phoenix.ResumeBackend.exception.ResourceExistsException;
 import com.phoenix.ResumeBackend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -17,6 +18,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
+
+    @Value("${app.base.url:http://localhost:8080}")
+    private String appBaseUrl;
+
+    private final EmailService emailService;
 
     public AuthResponse register(RegisterRequest request){
         log.info("Inside AuthService: register() {}",request);
@@ -29,8 +35,29 @@ public class AuthService {
         userRepository.save(newUser);
 
         //TODO: send verification email
+
+        sendVerificationEmail(newUser);
         return toResponse(newUser);
     }
+
+    private void sendVerificationEmail(User newUser){
+        try{
+            String link = appBaseUrl+"/api/auth/verify-email?token="+newUser.getVerificationToken();
+            String html= "<div style='font-family:sans-serif'>"+
+                    "<h2>Verify your email </h2>"+
+                    "<p>Hi " + newUser.getName() + " ,please confirm your email to activate your account</p>"+
+                    "<p><a href='"+link
+                    +"' style='display:inline-block;padding:10px 16px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none'>Verify Email</p>"
+                    +"<p>Or copy this link: " + link + "</p>"+
+                    "<p> this link expires in 24 hours"+
+                    "</div>";
+            emailService.sendHtmlEmail(newUser.getEmail(),"Verify your email",html);
+
+        }catch (Exception e){
+            throw new RuntimeException("failed to send verification email: "+e.getMessage());
+        }
+    }
+
 
     private AuthResponse toResponse(User newUser){
         return AuthResponse.builder()
